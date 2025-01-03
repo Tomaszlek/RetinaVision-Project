@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="com.obiscr.chatgpt.settings.EasyCodeState">
+    <option name="projectFiles" value="$PROJECT_DIR$/image_processing/__init__.py;C:/Users/Tomek/PycharmProjects/RetinaVision/image_processing/binaryzation.py;C:/Users/Tomek/PycharmProjects/RetinaVision/image_processing/blurring.py;C:/Users/Tomek/PycharmProjects/RetinaVision/image_processing/color_processing.py;C:/Users/Tomek/PycharmProjects/RetinaVision/image_processing/noise_reduction.py;C:/Users/Tomek/PycharmProjects/RetinaVision/app.py;C:/Users/Tomek/PycharmProjects/RetinaVision/filemanager.py;C:/Users/Tomek/PycharmProjects/RetinaVision/ImageProcessor.py;C:/Users/Tomek/PycharmProjects/RetinaVision/main.py;C:/Users/Tomek/PycharmProjects/RetinaVision/menu.py" />
+  </component>
+</project>
