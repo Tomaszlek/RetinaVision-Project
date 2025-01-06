@@ -36,13 +36,14 @@ class Menu:
         self.file_manager.set_results_directory()
 
 class SidePanel(tk.Frame):
-    def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor):
+    def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor, minutiae_processor):
         super().__init__(parent, bg="#f0f0f0")
         self.color_processor = color_processor
         self.blurring_processor = blurring_processor
         self.thresholding_processor = thresholding_processor
         self.noise_reduction_processor = noise_reduction_processor
         self.morphology_processor = morphology_processor
+        self.minutiae_processor = minutiae_processor
         self.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.setup_buttons()
@@ -54,8 +55,7 @@ class SidePanel(tk.Frame):
          tk.Button(self, text="Otsu Thresholding", command=self.open_otsu_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Median Filter", command=self.open_median_filter_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Morphological Operations", command=self.open_morphology_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
-
-
+         tk.Button(self, text="Detect Minutiae", command=self.open_minutiae_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
 
 
     def open_grayscale_options(self):
@@ -73,6 +73,9 @@ class SidePanel(tk.Frame):
       MedianFilterOptions(self.master, self.noise_reduction_processor)
     def open_morphology_options(self):
       MorphologyOptions(self.master, self.morphology_processor)
+
+    def open_minutiae_options(self):
+        MinutiaeOptions(self.master, self.minutiae_processor)
 
 
 class GrayscaleOptions(tk.Toplevel):
@@ -178,11 +181,20 @@ class MedianFilterOptions(tk.Toplevel):
         self.noise_reduction_processor = noise_reduction_processor
 
         self.window_size_var = tk.IntVar(value=3)
+        self.window_size_var.trace("w", self.validate_window_size)
 
         tk.Label(self, text="Window Size:").pack(anchor=tk.W)
-        tk.Spinbox(self, from_=3, to=21, increment=2, textvariable=self.window_size_var).pack(anchor=tk.W)
-
+        tk.Spinbox(self, from_=3, to=21, increment=2, textvariable=self.window_size_var, validate="focusout", validatecommand=self.validate_window_size).pack(anchor=tk.W)
         tk.Button(self, text="Apply Median Filter", command=self.apply_median_filter).pack(pady=10)
+    def validate_window_size(self, *args):
+         try:
+            value = self.window_size_var.get()
+            if value % 2 == 0:
+                self.window_size_var.set(value + 1)
+         except:
+            pass
+         return True
+
     def apply_median_filter(self):
         window_size = self.window_size_var.get()
         filtered_image = self.noise_reduction_processor.median_filter(self.noise_reduction_processor.app.current_image, size=window_size)
@@ -220,4 +232,25 @@ class MorphologyOptions(tk.Toplevel):
             self.morphology_processor.max_filter(self.morphology_processor.app.current_image, size = window_size)
         elif operation_type == "min":
             self.morphology_processor.min_filter(self.morphology_processor.app.current_image, size = window_size)
+        self.destroy()
+
+class MinutiaeOptions(tk.Toplevel):
+    def __init__(self, parent, minutiae_processor):
+        super().__init__(parent)
+        self.title("Minutiae Options")
+        self.minutiae_processor = minutiae_processor
+
+        self.distance_threshold_var = tk.IntVar(value=10)
+        tk.Label(self, text="Distance Threshold:").pack(anchor=tk.W)
+        tk.Spinbox(self, from_=1, to=30, textvariable=self.distance_threshold_var).pack(anchor=tk.W)
+
+        tk.Button(self, text="Detect and Filter Minutiae", command=self.detect_and_filter_minutiae).pack(pady=10)
+
+    def detect_and_filter_minutiae(self):
+        distance_threshold = self.distance_threshold_var.get()
+        minutiae, skeleton = self.minutiae_processor.detect_minutiae(self.minutiae_processor.app.current_image)
+        if minutiae:
+          filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold)
+          self.minutiae_processor.draw_minutiae_on_image(self.minutiae_processor.app.current_image, filtered_minutiae, skeleton)
+
         self.destroy()

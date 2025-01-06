@@ -1,10 +1,10 @@
-import tkinter as tk
 from tkinter import filedialog, messagebox
 import os
 from PIL import Image
 
 class FileLoader:
-    def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor):
+    def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
+                 morphology_processor, minutiae_processor):
         self.image_dir = None
         self.app = app
         self.color_processor = color_processor
@@ -12,9 +12,11 @@ class FileLoader:
         self.thresholding_processor = thresholding_processor
         self.noise_reduction_processor = noise_reduction_processor
         self.morphology_processor = morphology_processor
+        self.minutiae_processor = minutiae_processor
 
     def open_image(self):
-      file_path = filedialog.askopenfilename(title="Select Image File", filetypes=[("Image Files", "*.ppm *.png *.jpg *.jpeg")])
+      file_path = filedialog.askopenfilename(title="Select Image File",
+                                             filetypes=[("Image Files", "*.ppm *.png *.jpg *.jpeg")])
       if file_path:
           self.load_image(file_path)
     def open_image_directory(self):
@@ -63,8 +65,10 @@ class FileSaver:
             messagebox.showwarning("Warning","Please set results directory first and load an image")
 
 class FileManager:
-    def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor):
-        self.file_loader = FileLoader(app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor)
+    def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
+                 morphology_processor, minutiae_processor):
+        self.file_loader = FileLoader(app, color_processor, blurring_processor, thresholding_processor,
+                                      noise_reduction_processor, morphology_processor, minutiae_processor)
         self.file_saver = FileSaver()
         self.app = app
 

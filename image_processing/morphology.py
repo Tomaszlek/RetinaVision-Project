@@ -2,9 +2,11 @@ from PIL import Image
 import numpy as np
 from scipy.ndimage import binary_dilation, binary_erosion, grey_dilation, grey_erosion
 
+
 class MorphologyProcessor:
     def __init__(self, app):
         self.app = app
+
     def closing(self, image, size=3):
         if image is None:
              return None
@@ -74,6 +76,7 @@ class MorphologyProcessor:
           self.app.set_current_image(max_filtered_image)
           self.app.update_image_display()
           return max_filtered_image
+
     def min_filter(self, image, size=3):
          if image is None:
            return None
