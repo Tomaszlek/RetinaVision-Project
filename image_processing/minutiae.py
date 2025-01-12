@@ -73,23 +73,31 @@ class MinutiaeProcessor:
              if (i,j) != tuple(coord) and skeleton[i,j]:
                  count += 1
       return count
+
     def draw_minutiae_on_image(self, image, minutiae, skeleton):
       if image is None or not minutiae:
            return image
       image_np = np.array(image).copy()
-      for coord in minutiae:
-         x,y = coord
-         if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
-             if len(image_np.shape) == 3:
-                image_np[x, y] = [255, 0, 0] #Red color
-             else:
-                image_np[x,y] = 255
-
-
       if len(image_np.shape) == 3:
-        image_np[skeleton == 1] = [0, 255, 0] #Green color for skeleton
+         for x, y in np.transpose(np.where(skeleton == 1)):
+           if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
+              image_np[x,y] = [128, 128, 128] #Gray color for skeleton
+
+         for coord in minutiae:
+            x,y = coord
+            for i in range(max(0, x-1), min(image_np.shape[0], x+2)):
+               for j in range(max(0, y-1), min(image_np.shape[1], y+2)):
+                  image_np[i, j] = [255, 0, 0] #Red color for minutiae
       else:
-        image_np[skeleton == 1] = 128
+         for x, y in np.transpose(np.where(skeleton == 1)):
+            if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
+               image_np[x, y] = 128
+
+         for coord in minutiae:
+           x,y = coord
+           for i in range(max(0, x-1), min(image_np.shape[0], x+2)):
+             for j in range(max(0, y-1), min(image_np.shape[1], y+2)):
+                  image_np[i,j] = 255
 
       minutiae_image = Image.fromarray(image_np)
       self.app.set_current_image(minutiae_image)
