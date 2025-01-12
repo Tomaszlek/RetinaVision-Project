@@ -47,9 +47,7 @@ class BilateralFilterProcessor:
                         i_filtered += image[j, i] * w
                         w_sum += w
 
-
                 if w_sum > 0:
                     filtered_image[y, x] = i_filtered / w_sum
-
 
         return filtered_image
