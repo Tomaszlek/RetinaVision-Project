@@ -36,7 +36,8 @@ class Menu:
         self.file_manager.set_results_directory()
 
 class SidePanel(tk.Frame):
-    def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor, morphology_processor, minutiae_processor):
+    def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
+                 morphology_processor, minutiae_processor, bilateral_processor):
         super().__init__(parent, bg="#f0f0f0")
         self.color_processor = color_processor
         self.blurring_processor = blurring_processor
@@ -44,6 +45,7 @@ class SidePanel(tk.Frame):
         self.noise_reduction_processor = noise_reduction_processor
         self.morphology_processor = morphology_processor
         self.minutiae_processor = minutiae_processor
+        self.bilateral_processor = bilateral_processor
         self.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.setup_buttons()
@@ -54,6 +56,8 @@ class SidePanel(tk.Frame):
          tk.Button(self, text="Subtract Blurred", command=self.open_subtract_blurred_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Otsu Thresholding", command=self.open_otsu_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Median Filter", command=self.open_median_filter_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
+         tk.Button(self, text="Bilateral Filter", command=self.open_bilateral_options, bg="#e0e0e0", relief=tk.RAISED,
+                   borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Morphological Operations", command=self.open_morphology_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Detect Minutiae", command=self.open_minutiae_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
 
@@ -71,6 +75,10 @@ class SidePanel(tk.Frame):
 
     def open_median_filter_options(self):
       MedianFilterOptions(self.master, self.noise_reduction_processor)
+
+    def open_bilateral_options(self):
+        BilateralFilterOptions(self.master, self.bilateral_processor)
+
     def open_morphology_options(self):
       MorphologyOptions(self.master, self.morphology_processor)
 
@@ -203,6 +211,35 @@ class MedianFilterOptions(tk.Toplevel):
              self.noise_reduction_processor.app.update_image_display()
         self.destroy()
 
+class BilateralFilterOptions(tk.Toplevel):
+    def __init__(self, parent, bilateral_processor):
+        super().__init__(parent)
+        self.title("Bilateral Filter Options")
+        self.bilateral_processor = bilateral_processor
+
+        self.diameter_var = tk.IntVar(value=5)
+        self.sigma_color_var = tk.IntVar(value=20)
+        self.sigma_space_var = tk.IntVar(value=10)
+
+        tk.Label(self, text="Diameter:").pack(anchor=tk.W)
+        tk.Spinbox(self, from_=3, to=15, textvariable=self.diameter_var, increment = 2).pack(anchor=tk.W)
+
+        tk.Label(self, text="Sigma Color:").pack(anchor=tk.W)
+        tk.Spinbox(self, from_=10, to=50, textvariable=self.sigma_color_var, increment = 5).pack(anchor=tk.W)
+
+        tk.Label(self, text="Sigma Space:").pack(anchor=tk.W)
+        tk.Spinbox(self, from_=5, to=30, textvariable=self.sigma_space_var, increment = 5).pack(anchor=tk.W)
+
+        tk.Button(self, text="Apply Bilateral Filter", command=self.apply_bilateral_filter).pack(pady=10)
+
+    def apply_bilateral_filter(self):
+        diameter = self.diameter_var.get()
+        sigma_color = self.sigma_color_var.get()
+        sigma_space = self.sigma_space_var.get()
+
+        self.bilateral_processor.bilateral_filter(self.bilateral_processor.app.current_image, diameter, sigma_color, sigma_space)
+        self.destroy()
+
 class MorphologyOptions(tk.Toplevel):
     def __init__(self, parent, morphology_processor):
         super().__init__(parent)
@@ -249,8 +286,7 @@ class MinutiaeOptions(tk.Toplevel):
     def detect_and_filter_minutiae(self):
         distance_threshold = self.distance_threshold_var.get()
         minutiae, skeleton = self.minutiae_processor.detect_minutiae(self.minutiae_processor.app.current_image)
-        if minutiae:
-          filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold)
-          self.minutiae_processor.draw_minutiae_on_image(self.minutiae_processor.app.current_image, filtered_minutiae, skeleton)
+        filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold)
+        self.minutiae_processor.draw_minutiae_on_image(self.minutiae_processor.app.current_image, filtered_minutiae, skeleton)
 
         self.destroy()

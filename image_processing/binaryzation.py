@@ -1,6 +1,7 @@
 from PIL import Image
 import numpy as np
 
+
 class ThresholdingProcessor:
     def __init__(self, app, color_processor):
       self.app = app
@@ -35,7 +36,6 @@ class ThresholdingProcessor:
             if variance > max_variance:
                 max_variance = variance
                 best_threshold = threshold
-
 
          binary_np = (np.array(grayscale_image) > best_threshold).astype(np.uint8) * 255
 

@@ -4,7 +4,7 @@ from PIL import Image
 
 class FileLoader:
     def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
-                 morphology_processor, minutiae_processor):
+                 morphology_processor, minutiae_processor, bilateral_processor):
         self.image_dir = None
         self.app = app
         self.color_processor = color_processor
@@ -13,6 +13,7 @@ class FileLoader:
         self.noise_reduction_processor = noise_reduction_processor
         self.morphology_processor = morphology_processor
         self.minutiae_processor = minutiae_processor
+        self.bilateral_processor = bilateral_processor
 
     def open_image(self):
       file_path = filedialog.askopenfilename(title="Select Image File",
@@ -66,9 +67,9 @@ class FileSaver:
 
 class FileManager:
     def __init__(self, app, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
-                 morphology_processor, minutiae_processor):
+                 morphology_processor, minutiae_processor, bilateral_processor):
         self.file_loader = FileLoader(app, color_processor, blurring_processor, thresholding_processor,
-                                      noise_reduction_processor, morphology_processor, minutiae_processor)
+                                      noise_reduction_processor, morphology_processor, minutiae_processor, bilateral_processor)
         self.file_saver = FileSaver()
         self.app = app
 
