@@ -79,16 +79,18 @@ class MinutiaeProcessor:
            return image
       image_np = np.array(image).copy()
       if len(image_np.shape) == 3:
-         for x, y in np.transpose(np.where(skeleton == 1)):
-           if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
-              image_np[x,y] = [128, 128, 128] #Gray color for skeleton
+          image_np[:] = [255, 255, 255]
+          for x, y in np.transpose(np.where(skeleton == 1)):
+             if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
+                image_np[x,y] = [0, 0, 0] #Black color for skeleton
 
-         for coord in minutiae:
-            x,y = coord
-            for i in range(max(0, x-1), min(image_np.shape[0], x+2)):
+          for coord in minutiae:
+             x,y = coord
+             for i in range(max(0, x-1), min(image_np.shape[0], x+2)):
                for j in range(max(0, y-1), min(image_np.shape[1], y+2)):
-                  image_np[i, j] = [255, 0, 0] #Red color for minutiae
+                 image_np[i, j] = [255, 0, 0] #Red color for minutiae
       else:
+         image_np[:] = 255
          for x, y in np.transpose(np.where(skeleton == 1)):
             if 0 <= x < image_np.shape[0] and 0<= y < image_np.shape[1]:
                image_np[x, y] = 128
