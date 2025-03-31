@@ -24,13 +24,13 @@ class MainApp:
         self.morphology_processor = MorphologyProcessor(self.app)
         self.minutiae_processor = MinutiaeProcessor(self.app)
         self.bilateral_processor = BilateralFilterProcessor(self.app)
-        self.file_manager = FileManager(self.app,self.color_processor, self.blurring_processor,
-                                        self.thresholding_processor, self.noise_reduction_processor, self.morphology_processor,
-                                        self.minutiae_processor, self.bilateral_processor)
-        self.menu = Menu(self.root, self.file_manager)
         self.side_panel = SidePanel(self.root, self.color_processor, self.blurring_processor,
-                                    self.thresholding_processor, self.noise_reduction_processor, self.morphology_processor,
+                                    self.thresholding_processor, self.noise_reduction_processor,
+                                    self.morphology_processor,
                                     self.minutiae_processor, self.bilateral_processor)
+        self.file_manager = FileManager(self.app, self.side_panel)
+        self.menu = Menu(self.root, self.file_manager)
+
 
 
     def run(self):
