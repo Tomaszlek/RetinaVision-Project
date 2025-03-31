@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+from image_processing.anisotropic_diffusion import AnisotropicDiffusionProcessor
 
 class Menu:
     def __init__(self, root, file_manager):
@@ -28,7 +29,7 @@ class Menu:
 
 class SidePanel(tk.Frame):
     def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
-                 morphology_processor, minutiae_processor, bilateral_processor):
+                 morphology_processor, minutiae_processor, anisotropic_processor):
         super().__init__(parent, bg="#f0f0f0")
         self.color_processor = color_processor
         self.blurring_processor = blurring_processor
@@ -36,7 +37,7 @@ class SidePanel(tk.Frame):
         self.noise_reduction_processor = noise_reduction_processor
         self.morphology_processor = morphology_processor
         self.minutiae_processor = minutiae_processor
-        self.bilateral_processor = bilateral_processor
+        self.anisotropic_processor = anisotropic_processor
         self.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.setup_buttons()
@@ -49,9 +50,9 @@ class SidePanel(tk.Frame):
          tk.Button(self, text="Convert to Grayscale", command=self.open_grayscale_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Blur Image", command=self.open_blur_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Subtract Blurred", command=self.open_subtract_blurred_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
-         tk.Button(self, text="Otsu Thresholding", command=self.open_otsu_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
+         tk.Button(self, text="Adaptive Thresholding", command=self.open_adaptive_threshold_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Median Filter", command=self.open_median_filter_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
-         tk.Button(self, text="Bilateral Filter", command=self.open_bilateral_options, bg="#e0e0e0", relief=tk.RAISED,
+         tk.Button(self, text="Anisotropic Diffusion", command=self.open_anisotropic_options, bg="#e0e0e0",
                    borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Morphological Operations", command=self.open_morphology_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
          tk.Button(self, text="Detect Minutiae", command=self.open_minutiae_options, bg="#e0e0e0", relief=tk.RAISED, borderwidth=1, padx=5, pady=3).pack(fill=tk.X, pady=5)
@@ -111,12 +112,12 @@ class SidePanel(tk.Frame):
                  messagebox.showerror("Error", "Failed during Closing.")
                  return
 
-            # 6. Otsu Thresholding (No Inversion)
-            print("Step 6: Applying Otsu Thresholding")
+            # 6. Adaptive Thresholding (No Inversion)
+            print("Step 6: Applying Adaptive Thresholding")
             # otsu_threshold returns the binary image, does NOT update app state
-            binary_image = self.thresholding_processor.otsu_threshold(current_app.current_image, invert_colors=False)
+            binary_image = self.thresholding_processor.adaptive_threshold(current_app.current_image, invert_colors=False)
             if binary_image is None:
-                messagebox.showerror("Error", "Failed during Otsu Thresholding.")
+                messagebox.showerror("Error", "Failed during Adaptive Thresholding.")
                 return
             current_app.set_current_image(binary_image) # Explicitly set image
 
@@ -159,14 +160,15 @@ class SidePanel(tk.Frame):
         # The manual button might need adjustment if it should *always* grayscale first.
         # The automatic sequence handles this explicitly.
         SubtractBlurredOptions(self.master, self.blurring_processor, self.color_processor)
-    def open_otsu_options(self):
-      OtsuOptions(self.master, self.thresholding_processor)
+
+    def open_adaptive_threshold_options(self):
+        AdaptiveThresholdOptions(self.master, self.thresholding_processor)
 
     def open_median_filter_options(self):
       MedianFilterOptions(self.master, self.noise_reduction_processor)
 
-    def open_bilateral_options(self):
-        BilateralFilterOptions(self.master, self.bilateral_processor)
+    def open_anisotropic_options(self):
+        AnisotropicDiffusionOptions(self.master, self.anisotropic_processor)
 
     def open_morphology_options(self):
       MorphologyOptions(self.master, self.morphology_processor)
@@ -286,30 +288,80 @@ class SubtractBlurredOptions(tk.Toplevel):
         self.blurring_processor.subtract_blurred(window_size, blur_type)
         self.destroy()
 
-class OtsuOptions(tk.Toplevel):
+class AdaptiveThresholdOptions(tk.Toplevel):
     def __init__(self, parent, thresholding_processor):
          super().__init__(parent)
-         self.title("Otsu Thresholding Options")
+         self.title("Adaptive Thresholding Options")
          self.thresholding_processor = thresholding_processor
          self.app = self.thresholding_processor.app # Get reference to app
+
+         # Parameters for adaptive thresholding
+         self.block_size_var = tk.IntVar(value=35)
+         self.method_var = tk.StringVar(value='gaussian')
+         self.offset_var = tk.DoubleVar(value=0) # Use DoubleVar for offset
          self.invert_var = tk.BooleanVar(value=False)
 
-         tk.Checkbutton(self, text="Invert Colors", variable=self.invert_var).pack(anchor=tk.W)
-         tk.Button(self, text="Apply Otsu", command=self.apply_otsu).pack(pady=10)
-    def apply_otsu(self):
+         # Block Size
+         tk.Label(self, text="Block Size (odd, >=3):").pack(anchor=tk.W, padx=5)
+         self.block_size_spinbox = tk.Spinbox(self, from_=3, to=255, increment=2, textvariable=self.block_size_var)
+         self.block_size_spinbox.pack(anchor=tk.W, padx=5, fill=tk.X)
+
+         # Method
+         tk.Label(self, text="Method:").pack(anchor=tk.W, padx=5, pady=(5,0))
+         tk.Radiobutton(self, text="Gaussian", variable=self.method_var, value='gaussian').pack(anchor=tk.W, padx=15)
+         tk.Radiobutton(self, text="Mean", variable=self.method_var, value='mean').pack(anchor=tk.W, padx=15)
+         # tk.Radiobutton(self, text="Median", variable=self.method_var, value='median').pack(anchor=tk.W, padx=15) # Median can be slow
+
+         # Offset
+         tk.Label(self, text="Offset:").pack(anchor=tk.W, padx=5, pady=(5,0))
+         # Using Scale for easier adjustment, allow negative values
+         tk.Scale(self, from_=-50, to=50, resolution=0.5, orient=tk.HORIZONTAL, variable=self.offset_var).pack(fill=tk.X, padx=5)
+
+         # Invert Colors
+         tk.Checkbutton(self, text="Invert Colors", variable=self.invert_var).pack(anchor=tk.W, padx=5, pady=5)
+
+         # Apply Button
+         tk.Button(self, text="Apply Adaptive Threshold", command=self.apply_threshold).pack(pady=10)
+
+    def apply_threshold(self):
        if self.app.current_image is None:
               messagebox.showwarning("No Image", "Please load an image first.")
               self.destroy()
               return
-       invert_colors = self.invert_var.get()
-       # otsu_threshold returns the image, need to set it manually
-       otsu_image = self.thresholding_processor.otsu_threshold(self.app.current_image, invert_colors)
-       if otsu_image is not None:
-         self.app.set_current_image(otsu_image)
-         self.app.update_image_display()
-       else:
-           messagebox.showerror("Error", "Otsu thresholding failed.")
-       self.destroy()
+       try:
+           block_size = self.block_size_var.get()
+           method = self.method_var.get()
+           offset = self.offset_var.get()
+           invert_colors = self.invert_var.get()
+
+           # Validate block_size
+           if block_size < 3 or block_size % 2 == 0:
+               messagebox.showerror("Invalid Block Size", "Block size must be an odd integer >= 3.")
+               return # Keep window open
+
+           # Call the processor method
+           binary_image = self.thresholding_processor.adaptive_threshold(
+               self.app.current_image,
+               block_size=block_size,
+               method=method,
+               offset=offset,
+               invert_colors=invert_colors
+           )
+
+           # Update the app state with the result from the processor
+           if binary_image is not None:
+             self.app.set_current_image(binary_image)
+             self.app.update_image_display()
+           else:
+               messagebox.showerror("Error", "Adaptive thresholding failed.")
+
+           self.destroy() # Close the options window
+
+       except tk.TclError:
+           messagebox.showerror("Invalid Input", "Please ensure parameters are valid.")
+       except Exception as e:
+            messagebox.showerror("Error", f"An error occurred during thresholding: {e}")
+            self.destroy() # Close window on error too
 
 class MedianFilterOptions(tk.Toplevel):
     def __init__(self, parent, noise_reduction_processor):
@@ -352,44 +404,72 @@ class MedianFilterOptions(tk.Toplevel):
         #    messagebox.showerror("Error", "Median filtering failed.")
         self.destroy()
 
-class BilateralFilterOptions(tk.Toplevel):
-    def __init__(self, parent, bilateral_processor):
+class AnisotropicDiffusionOptions(tk.Toplevel):
+    def __init__(self, parent, anisotropic_processor):
         super().__init__(parent)
-        self.title("Bilateral Filter Options")
-        self.bilateral_processor = bilateral_processor
-        self.app = self.bilateral_processor.app # Get reference to app
+        self.title("Anisotropic Diffusion Options")
+        self.anisotropic_processor = anisotropic_processor
+        self.app = self.anisotropic_processor.app # Get reference to app
 
-        self.diameter_var = tk.IntVar(value=5)
-        self.sigma_color_var = tk.IntVar(value=20)
-        self.sigma_space_var = tk.IntVar(value=10)
+        # Parameters for anisotropic diffusion
+        self.iterations_var = tk.IntVar(value=20)
+        self.kappa_var = tk.DoubleVar(value=50.0) # Use DoubleVar for kappa/gamma
+        self.gamma_var = tk.DoubleVar(value=0.1)
+        self.option_var = tk.IntVar(value=1) # 1 or 2
 
-        tk.Label(self, text="Diameter:").pack(anchor=tk.W)
-        tk.Spinbox(self, from_=3, to=15, textvariable=self.diameter_var, increment = 2).pack(anchor=tk.W)
+        tk.Label(self, text="Number of Iterations:").pack(anchor=tk.W)
+        tk.Spinbox(self, from_=1, to=200, textvariable=self.iterations_var, increment=5).pack(anchor=tk.W)
 
-        tk.Label(self, text="Sigma Color:").pack(anchor=tk.W)
-        tk.Spinbox(self, from_=10, to=100, textvariable=self.sigma_color_var, increment = 5).pack(anchor=tk.W) # Increased max sigma color
+        tk.Label(self, text="Kappa (Edge Sensitivity):").pack(anchor=tk.W)
+        tk.Scale(self, from_=1, to=150, resolution=1, orient=tk.HORIZONTAL, variable=self.kappa_var).pack(fill=tk.X, padx=5) # Use a Scale for easier selection
 
-        tk.Label(self, text="Sigma Space:").pack(anchor=tk.W)
-        tk.Spinbox(self, from_=5, to=50, textvariable=self.sigma_space_var, increment = 5).pack(anchor=tk.W) # Increased max sigma space
+        tk.Label(self, text="Gamma (Diffusion Speed):").pack(anchor=tk.W)
+        tk.Scale(self, from_=0.01, to=0.25, resolution=0.01, orient=tk.HORIZONTAL, variable=self.gamma_var).pack(fill=tk.X, padx=5)
 
-        tk.Button(self, text="Apply Bilateral Filter", command=self.apply_bilateral_filter).pack(pady=10)
+        tk.Label(self, text="Diffusion Equation Option:").pack(anchor=tk.W)
+        tk.Radiobutton(self, text="Option 1", variable=self.option_var, value=1).pack(anchor=tk.W)
+        tk.Radiobutton(self, text="Option 2", variable=self.option_var, value=2).pack(anchor=tk.W)
 
-    def apply_bilateral_filter(self):
+
+        tk.Button(self, text="Apply Anisotropic Diffusion", command=self.apply_diffusion).pack(pady=10)
+
+    def apply_diffusion(self):
         if self.app.current_image is None:
               messagebox.showwarning("No Image", "Please load an image first.")
               self.destroy()
               return
-        diameter = self.diameter_var.get()
-        sigma_color = self.sigma_color_var.get()
-        sigma_space = self.sigma_space_var.get()
 
-        if diameter % 2 == 0 or diameter < 3:
-            messagebox.showerror("Invalid Size", "Diameter must be an odd number >= 3.")
-            return # Keep window open
+        try:
+            n_iterations = self.iterations_var.get()
+            kappa = self.kappa_var.get()
+            gamma = self.gamma_var.get()
+            option = self.option_var.get()
 
-        # bilateral_filter updates app state internally
-        self.bilateral_processor.bilateral_filter(self.app.current_image, diameter, sigma_color, sigma_space)
-        self.destroy()
+            if n_iterations <= 0:
+                 messagebox.showerror("Invalid Value", "Number of iterations must be positive.")
+                 return
+            if not (0.0 < gamma <= 0.25): # Validate gamma range typically used
+                messagebox.showwarning("Potential Issue", "Gamma is usually between 0.0 and 0.25.")
+                # Allow proceeding, but warn the user. Could make this an error too.
+            if kappa <= 0:
+                 messagebox.showerror("Invalid Value", "Kappa must be positive.")
+                 return
+
+            # Call the processor method - it handles app state update internally
+            self.anisotropic_processor.apply_anisotropic_diffusion(
+                self.app.current_image,
+                n_iterations=n_iterations,
+                kappa=kappa,
+                gamma=gamma,
+                option=option
+            )
+            self.destroy()
+
+        except tk.TclError:
+            messagebox.showerror("Invalid Input", "Please ensure all parameters are valid numbers.")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred during diffusion: {e}")
+            self.destroy() # Close window on error too
 
 class MorphologyOptions(tk.Toplevel):
     def __init__(self, parent, morphology_processor):
