@@ -12,28 +12,19 @@ class Menu:
         self.root.config(menu=menu_bar)
 
         file_menu = tk.Menu(menu_bar, tearoff=0)
-        file_menu.add_command(label="Open Image", command=self.open_image)
-        file_menu.add_command(label="Save Image", command=self.save_image)
+        file_menu.add_command(label="Open Image Directory", command=self.file_manager.open_image_directory)
+        file_menu.add_command(label="Open Image", command=self.file_manager.open_image)
         file_menu.add_separator()
-        file_menu.add_command(label="Open Image Directory", command=self.open_image_directory)
-        file_menu.add_command(label="Set Results Directory", command=self.set_results_directory)
+        file_menu.add_command(label="Save Image", command=self.file_manager.save_image)
+        file_menu.add_command(label="Set Results Directory", command=self.file_manager.set_results_directory)
+        file_menu.add_separator()
+        file_menu.add_command(label="Process All Images", command=self.file_manager.process_all_images)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         menu_bar.add_cascade(label="File", menu=file_menu)
 
 
-    def open_image(self):
-         self.file_manager.open_image()
 
-
-    def save_image(self):
-        self.file_manager.save_image()
-
-    def open_image_directory(self):
-        self.file_manager.open_image_directory()
-
-    def set_results_directory(self):
-        self.file_manager.set_results_directory()
 
 class SidePanel(tk.Frame):
     def __init__(self, parent, color_processor, blurring_processor, thresholding_processor, noise_reduction_processor,
@@ -147,7 +138,6 @@ class SidePanel(tk.Frame):
             # Final explicit update just in case
             current_app.update_image_display()
             print("Automatic sequence finished.")
-            messagebox.showinfo("Success", "Automatic processing sequence completed successfully!")
 
         except Exception as e:
             messagebox.showerror("Processing Error", f"An error occurred during the automatic sequence:\n{e}")
