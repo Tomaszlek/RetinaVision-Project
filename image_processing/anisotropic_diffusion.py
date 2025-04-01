@@ -47,7 +47,6 @@ class AnisotropicDiffusionProcessor:
         if image is None:
             return None
 
-
         if gamma > 0.25:
              print(f"Warning: Gamma ({gamma}) > 0.25 may lead to instability with this manual implementation. Reducing to 0.25.")
              gamma = 0.25

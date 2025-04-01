@@ -45,7 +45,6 @@ class ColorProcessor:
             else:  # average
                 grayscale_np = np.mean(image_np, axis=2).astype(np.uint8)
 
-
             grayscale_image = Image.fromarray(grayscale_np)
             return grayscale_image
         else:

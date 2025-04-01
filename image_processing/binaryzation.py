@@ -7,7 +7,7 @@ class ThresholdingProcessor:
       self.app = app
       self.color_processor = color_processor
 
-    def adaptive_threshold(self, image, block_size=35, method='gaussian', offset=0, invert_colors=False):
+    def adaptive_threshold(self, image, block_size=21, method='gaussian', offset=5, invert_colors=False):
          if image is None:
            return None
 

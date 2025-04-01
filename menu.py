@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from image_processing.anisotropic_diffusion import AnisotropicDiffusionProcessor
+import numpy as np
 
 class Menu:
     def __init__(self, root, file_manager):
@@ -23,8 +24,6 @@ class Menu:
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.quit)
         menu_bar.add_cascade(label="File", menu=file_menu)
-
-
 
 
 class SidePanel(tk.Frame):
@@ -77,77 +76,59 @@ class SidePanel(tk.Frame):
             if grayscale_image is None:
                 messagebox.showerror("Error", "Failed to convert to grayscale.")
                 return
-            current_app.set_current_image(grayscale_image) # Explicitly set image
-            # No need to update display here, will happen implicitly or later
+            current_app.set_current_image(grayscale_image)
 
             # 2. Box Blur (Window Size 5)
             print("Step 2: Applying Box Blur (Size 5)")
-            # box_blur modifies the app's current image internally and updates display
             self.blurring_processor.box_blur(current_app.current_image, window_size=5)
-            if current_app.current_image is None: # Check if blur failed (though unlikely with current impl)
+            if current_app.current_image is None:
                  messagebox.showerror("Error", "Failed during Box Blur.")
                  return
 
-            # 3. Subtract Blurred (Box Blur, Window Size 5)
             print("Step 3: Subtracting Blurred (Box Blur, Size 5)")
-            # subtract_blurred modifies the app's current image internally and updates display
             self.blurring_processor.subtract_blurred(window_size=5, blur_type="box")
             if current_app.current_image is None:
                  messagebox.showerror("Error", "Failed during Subtract Blurred.")
                  return
 
-            # 4. Median Filter (Window Size 3)
-            print("Step 4: Applying Median Filter (Size 3)")
-            # median_filter modifies the app's current image internally and updates display
+            print("Step 4: Applying Adaptive Thresholding")
+            binary_image = self.thresholding_processor.adaptive_threshold(current_app.current_image, invert_colors=True)
+            if binary_image is None:
+                messagebox.showerror("Error", "Failed during Adaptive Thresholding.")
+                return
+            current_app.set_current_image(binary_image)
+
+            print("Step 5: Applying Median Filter (Size 3)")
             self.noise_reduction_processor.median_filter(current_app.current_image, size=3)
             if current_app.current_image is None:
                  messagebox.showerror("Error", "Failed during Median Filter.")
                  return
 
-            # 5. Morphological Closing (Window Size 3)
-            print("Step 5: Applying Morphological Closing (Size 3)")
-            # closing modifies the app's current image internally and updates display
-            self.morphology_processor.closing(current_app.current_image, size=3)
+            print("Step 6: Applying Morphological Closing (Size 3)")
+            self.morphology_processor.opening(current_app.current_image, size=3)
             if current_app.current_image is None:
                  messagebox.showerror("Error", "Failed during Closing.")
                  return
 
-            # 6. Adaptive Thresholding (No Inversion)
-            print("Step 6: Applying Adaptive Thresholding")
-            # otsu_threshold returns the binary image, does NOT update app state
-            binary_image = self.thresholding_processor.adaptive_threshold(current_app.current_image, invert_colors=False)
-            if binary_image is None:
-                messagebox.showerror("Error", "Failed during Adaptive Thresholding.")
-                return
-            current_app.set_current_image(binary_image) # Explicitly set image
-
-            # 7. Detect and Filter Minutiae (Distance Threshold 1)
             print("Step 7: Detecting and Filtering Minutiae (Threshold 1)")
-            # detect_minutiae uses the current (binary) image, returns results
             minutiae, skeleton = self.minutiae_processor.detect_minutiae(current_app.current_image)
             if minutiae is None or skeleton is None:
                  messagebox.showerror("Error", "Failed during Minutiae Detection.")
                  return
 
-            # remove_false_minutiae uses results, returns filtered list
-            filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold=1)
+            filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold=3)
 
-            # draw_minutiae_on_image uses the current (binary) image, filtered list,
-            # and skeleton, and updates the app state and display internally.
+
             self.minutiae_processor.draw_minutiae_on_image(current_app.current_image, filtered_minutiae, skeleton)
 
-            # Final explicit update just in case
             current_app.update_image_display()
             print("Automatic sequence finished.")
 
         except Exception as e:
             messagebox.showerror("Processing Error", f"An error occurred during the automatic sequence:\n{e}")
             print(f"Error during automatic sequence: {e}")
-            # Optionally, try to reset to the original image or a safe state
-            # current_app.set_current_image(original_image_backup) # Need to implement backup logic if desired
-            current_app.update_image_display()
 
-    # --- END NEW METHOD ---
+            current_app.update_image_display()
 
     def open_grayscale_options(self):
         GrayscaleOptions(self.master, self.color_processor)
@@ -156,9 +137,6 @@ class SidePanel(tk.Frame):
         BlurOptions(self.master, self.blurring_processor)
 
     def open_subtract_blurred_options(self):
-        # Note: Subtract blurred now works on the current image, which might be color.
-        # The manual button might need adjustment if it should *always* grayscale first.
-        # The automatic sequence handles this explicitly.
         SubtractBlurredOptions(self.master, self.blurring_processor, self.color_processor)
 
     def open_adaptive_threshold_options(self):
@@ -195,8 +173,7 @@ class GrayscaleOptions(tk.Toplevel):
 
     def convert_to_grayscale(self):
           channel = self.channel_var.get()
-          # Call to_grayscale without image arg, it will use app.current_image
-          # and update the app state internally.
+
           self.color_processor.to_grayscale(channel=channel)
           self.destroy()
 
@@ -230,10 +207,8 @@ class BlurOptions(tk.Toplevel):
               self.destroy()
               return
           if blur_type == "box":
-              # Methods update app state internally
               self.blurring_processor.box_blur(self.app.current_image, window_size)
           elif blur_type == "gaussian":
-             # Methods update app state internally
              self.blurring_processor.gaussian_blur(self.app.current_image, window_size)
           self.destroy()
 
@@ -244,7 +219,7 @@ class SubtractBlurredOptions(tk.Toplevel):
         self.title("Subtract Blurred Options")
         self.blurring_processor = blurring_processor
         self.color_processor = color_processor
-        self.app = self.blurring_processor.app # Get reference to app
+        self.app = self.blurring_processor.app
 
 
         self.blur_type_var = tk.StringVar(value="box")
@@ -269,9 +244,6 @@ class SubtractBlurredOptions(tk.Toplevel):
               self.destroy()
               return
 
-        # --- Modification: Ensure grayscale before subtracting ---
-        # The automatic sequence does this explicitly earlier. For the manual button,
-        # we should probably ensure the image is grayscale *here* if it isn't already.
         current_img_np = self.app.current_image # Use numpy directly later if needed
         if len(np.array(current_img_np).shape) == 3:
             messagebox.showinfo("Info", "Converting to grayscale before subtracting blurred.")
@@ -282,9 +254,7 @@ class SubtractBlurredOptions(tk.Toplevel):
                  messagebox.showerror("Error", "Failed to convert image to grayscale for subtraction.")
                  self.destroy()
                  return
-        # --- End Modification ---
 
-        # This method updates the app state internally
         self.blurring_processor.subtract_blurred(window_size, blur_type)
         self.destroy()
 
@@ -293,12 +263,12 @@ class AdaptiveThresholdOptions(tk.Toplevel):
          super().__init__(parent)
          self.title("Adaptive Thresholding Options")
          self.thresholding_processor = thresholding_processor
-         self.app = self.thresholding_processor.app # Get reference to app
+         self.app = self.thresholding_processor.app
 
          # Parameters for adaptive thresholding
-         self.block_size_var = tk.IntVar(value=35)
+         self.block_size_var = tk.IntVar(value=15)
          self.method_var = tk.StringVar(value='gaussian')
-         self.offset_var = tk.DoubleVar(value=0) # Use DoubleVar for offset
+         self.offset_var = tk.DoubleVar(value=0)
          self.invert_var = tk.BooleanVar(value=False)
 
          # Block Size
@@ -348,7 +318,6 @@ class AdaptiveThresholdOptions(tk.Toplevel):
                invert_colors=invert_colors
            )
 
-           # Update the app state with the result from the processor
            if binary_image is not None:
              self.app.set_current_image(binary_image)
              self.app.update_image_display()
@@ -397,11 +366,7 @@ class MedianFilterOptions(tk.Toplevel):
             messagebox.showerror("Invalid Size", "Window size must be an odd number >= 3.")
             return # Keep window open
 
-        # median_filter updates app state internally
         filtered_image = self.noise_reduction_processor.median_filter(self.app.current_image, size=window_size)
-        # Check if it returned None (error) might be useful, though current implementation doesn't
-        # if filtered_image is None:
-        #    messagebox.showerror("Error", "Median filtering failed.")
         self.destroy()
 
 class AnisotropicDiffusionOptions(tk.Toplevel):
@@ -502,7 +467,6 @@ class MorphologyOptions(tk.Toplevel):
             messagebox.showerror("Invalid Size", "Window size must be an odd number >= 3.")
             return # Keep window open
 
-        # All morphology methods update app state internally
         if operation_type == "closing":
              self.morphology_processor.closing(self.app.current_image, size = window_size)
         elif operation_type == "opening":
@@ -518,7 +482,7 @@ class MinutiaeOptions(tk.Toplevel):
         super().__init__(parent)
         self.title("Minutiae Options")
         self.minutiae_processor = minutiae_processor
-        self.app = self.minutiae_processor.app # Get reference to app
+        self.app = self.minutiae_processor.app
 
 
         self.distance_threshold_var = tk.IntVar(value=10)
@@ -533,9 +497,6 @@ class MinutiaeOptions(tk.Toplevel):
               self.destroy()
               return
 
-        # --- Modification: Ensure binary image ---
-        # Minutiae detection typically works best on a binary skeleton.
-        # Check if the current image is binary, if not, warn or attempt Otsu.
         current_img_np = np.array(self.app.current_image)
         is_binary = len(current_img_np.shape) == 2 and np.all(np.isin(current_img_np, [0, 255])) # Simple check
         is_grayscale = len(current_img_np.shape) == 2 and not is_binary
@@ -546,20 +507,15 @@ class MinutiaeOptions(tk.Toplevel):
             return
         elif is_grayscale: # Grayscale but not binary
              messagebox.showwarning("Image Type", "Minutiae detection works best on a binary image. Please apply Otsu Thresholding first (or ensure image is already binary).")
-             # Optionally, could automatically apply Otsu here, but better to guide user.
-             # otsu_img = self.minutiae_processor.app.thresholding_processor.otsu_threshold(self.app.current_image)
-             # if otsu_img: self.app.set_current_image(otsu_img) else: return
              self.destroy()
              return
-        # --- End Modification ---
 
 
         distance_threshold = self.distance_threshold_var.get()
         if distance_threshold < 0:
             messagebox.showerror("Invalid Value", "Distance threshold cannot be negative.")
-            return # Keep window open
+            return
 
-        # detect_minutiae uses current (binary), returns results
         minutiae, skeleton = self.minutiae_processor.detect_minutiae(self.app.current_image)
 
         if minutiae is None or skeleton is None:
@@ -567,14 +523,8 @@ class MinutiaeOptions(tk.Toplevel):
             self.destroy()
             return
 
-        # remove_false_minutiae uses results, returns filtered list
         filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold)
 
-        # draw_minutiae_on_image uses current (binary), filtered list, skeleton, updates app state
         self.minutiae_processor.draw_minutiae_on_image(self.app.current_image, filtered_minutiae, skeleton)
 
         self.destroy()
-
-# --- Need to import numpy in menu.py for the checks ---
-import numpy as np
-# --- End Import ---
