@@ -116,7 +116,7 @@ class SidePanel(tk.Frame):
                  messagebox.showerror("Error", "Failed during Minutiae Detection.")
                  return
 
-            filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold=3)
+            filtered_minutiae = self.minutiae_processor.remove_false_minutiae(minutiae, skeleton, distance_threshold=2)
 
 
             self.minutiae_processor.draw_minutiae_on_image(current_app.current_image, filtered_minutiae, skeleton)
